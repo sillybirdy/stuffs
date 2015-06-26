@@ -10,7 +10,9 @@ define(function ()
 {
     var uuid = 0,
         undefined,
+        cache = {},
         YELL = 'Yell',
+        DOCID = 'yel_doc',
         MOUSE_EVENT = 1,
         KEY_EVENT = 2,
         AUTH_EVENTS = '|click|dblclick|mousedown|mouseup|mouseenter|mouseleave|mousewheel|mouseover|mousemove|mouseout|keydown|keypress|keyup|';
@@ -109,7 +111,8 @@ define(function ()
         {
             this.id = ++uuid;
             this.errs = [];
-            this.DOMelement = elem && elem.nodeType && (elem.nodeType == 1 || elem.nodeType == 9) ? elem : null;
+            this.nodetype =  elem ? elem.nodeType : null;
+            this.DOMelement = elem && (this.nodetype == 1 || this.nodetype == 9) ? elem : null;
             if (this.DOMelement === null) this.errs.push('Yell'+this.id+': no DOM element');
             return evt ? this.on(evt) : this;
         },
@@ -118,6 +121,29 @@ define(function ()
             if (AUTH_EVENTS.indexOf('|' + evt + '|') != -1)
                     return this.listen(evt);
             this.errs.push('Yell'+this.id+': no valid event '+evt);
+            return this;
+        },
+        off: function(evt, fn)
+        {
+            var cid = this.nodetype == 1 && this.DOMelement.id ? this.DOMelement.id : 
+                    this.nodetype == 9 ? DOCID : null;
+            if (cid !== null && cache[cid])
+            {
+                var i, l;
+                for (i = 0, l = cache[cid].length; i < l; i++)
+                {
+                    var c = cache[cid][i];
+                    if (c.evt !== evt || (fn && c.cb !== fn)) continue;
+                    removeEvent(this.DOMelement, c.evt, c.fn);
+                    c = null;
+                }
+                while (l)
+                {
+                    l--;
+                    if (!cache[cid][l])
+                        cache[cid].splice(l, 1);
+                }
+            }
             return this;
         },
         listen: function (evt)
@@ -148,7 +174,13 @@ define(function ()
                             callback.apply(that.DOMelement, [that.DOMelement, evt, a]);
                     };
                 if (this.DOMelement !== null)
+                {
+                    var cid = this.nodetype == 1 ? (this.DOMelement.id || 'yell_'+id) : DOCID;
+                    if (this.nodetype == 1) this.DOMelement.id = cid;
+                    if (!cache[cid]) cache[cid] = [];
+                    cache[cid].push({ evt: evt, fn: fn, cb: callback });
                     addEvent(this.DOMelement, evt, fn);
+                }
             }
             else
                 this.errs.push('Yell'+this.id+': no callback function');

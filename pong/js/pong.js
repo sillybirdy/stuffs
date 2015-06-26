@@ -21,6 +21,8 @@ requirejs(['domReady!', 'yell'], function(doc, Yell) {
     // mouse event test
     Yell(document).on('mousemove').act(function(elem, evt, m) {
         console.log('mouse: '+m.x+' ; '+m.y);
+        if (m.x > 300 && m.y > 100)
+            Yell(document).off('mousemove');
     }).log();
 });
 
