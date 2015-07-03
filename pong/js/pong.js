@@ -8,14 +8,21 @@ requirejs.config({
     }
 });
 
-requirejs(['domReady!', 'yell'], function(doc, Yell) {
+requirejs(['domReady!', 'yell', 'game'], function(doc, Yell, Game) 
+{
+    // test game
+    var g = new Game({ name: 'Pong', size: '960*540' });
+    console.log(g.infos());
+    g.screen('menu').print('Hello');
+    
     // key event test
     Yell(document.body).on('keyup').hook(function(k)
     {
+        console.log(k+': '+String.fromCharCode(k));
         if (k == 88)
             return true;
     }).act(function(elem, evt, k) {
-        console.log(k+': '+String.fromCharCode(k));
+         Yell(document.body).off('keyup');
     }).log();
     
     // mouse event test
