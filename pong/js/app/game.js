@@ -49,7 +49,9 @@
         };
         Screen.fn = Screen.prototype =
         {
+            _fn: null,
             id: '',
+            displayed: false,
             init: function(id, param)
             {
                 this.id = param.id+'_'+id;
@@ -62,28 +64,47 @@
                     };
                 try
                 {
-                    $('#'+param.id).append('<div id="'+id+'" />').find('#'+id).css(css);
+                    $('#'+param.id).append('<div id="'+id+'" />').find('#'+id).css(css).hide();
                 }
                 catch(e)
                 {
                     jQueryRequired();
                 }
+                return this;
             },
-            get: function()
+            set: function(attr, val)
             {
-                return $('#'+this.id)[0];
+                var prev = $('#'+this.id).attr(attr);
+                $('#'+this.id).attr(attr, prev + val);
+                return this;
             },
-            hide: function()
+            hide: function(callback)
             {
                 $('#'+this.id).hide();
+                this.displayed = false;
+                $(this).trigger('hidden');
+                if (typeof callback == 'function') callback.apply(this, [this.id]);
+                return this;
             },
-            show: function()
+            show: function(callback)
             {
                 $('#'+this.id).show();
+                this.displayed = true;
+                $(this).trigger('showed');
+                if (typeof callback == 'function') callback.apply(this, [this.id]);
+                else if (this._fn !== null) this._fn.apply(this, [this.id]);
+                return this;
             },
-            print: function(str)
+            print: function(str, norep)
             {
-                $('#'+this.id).innerHTML = str;
+                if (norep) $('#'+this.id).append(str);
+                else $('#'+this.id).html(str);
+                return this;
+            },
+            define: function(fn)
+            {
+                this._fn = typeof fn == 'function' ? fn : null;
+                return this;
             }
         };
         Screen.fn.init.prototype = Screen.fn;
@@ -130,12 +151,27 @@
             screen: function(id)
             {
                 if (!this._screens[id])
-                    this._screens[id] = Screen(id, this._param);
-                
-                for(var i in this._screens)
                 {
-                    if (i === id) this._screens[i].show();
-                    else this._screens[i].hide();
+                    this._screens[id] = Screen(id, this._param);
+                    var show = (function(screens, sid)
+                    {
+                        return function()
+                        {
+                            console.log('show '+sid);
+                            for(var i in screens)
+                            {
+                                if (screens[i].displayed && i !== sid) 
+                                    screens[i].hide();
+                            }
+                        };
+                    })(this._screens, id),
+                    hide = (function(sid)
+                    {
+                        return function(){console.log('hide '+sid);};
+                    })(id);
+                    $(this._screens[id])
+                        .on('showed', show)
+                        .on('hidden', hide);
                 }
                 return this._screens[id];
             }
