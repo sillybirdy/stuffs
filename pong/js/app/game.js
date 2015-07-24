@@ -84,15 +84,16 @@
                 this.displayed = false;
                 $(this).trigger('hidden');
                 if (typeof callback == 'function') callback.apply(this, [this.id]);
+                else if (this._fn !== null && typeof this._fn.hide == 'function') this._fn.hide.apply(this, [this.id]);
                 return this;
             },
             show: function(callback)
             {
                 $('#'+this.id).show();
                 this.displayed = true;
-                $(this).trigger('showed');
+                $(this).trigger('shown');
                 if (typeof callback == 'function') callback.apply(this, [this.id]);
-                else if (this._fn !== null) this._fn.apply(this, [this.id]);
+                else if (this._fn !== null && typeof this._fn.show == 'function') this._fn.show.apply(this, [this.id]);
                 return this;
             },
             print: function(str, norep)
@@ -103,7 +104,7 @@
             },
             define: function(fn)
             {
-                this._fn = typeof fn == 'function' ? fn : null;
+                this._fn = typeof fn == 'object' && (typeof fn.show == 'function' || typeof fn.hide == 'function') ? fn : null;
                 return this;
             }
         };
@@ -121,6 +122,18 @@
                 this._param[i] = (typeof param[i]).match(p.type) && p.isValid(param) ? param[i] : p.value;
             }
             this._param.id = uniqId();
+            
+            var h = $(window).height(), w = $(window).width();
+            if (this._param.offset.height > h)
+            {
+                this._param.offset.width = Math.round(this._param.offset.width * h / this._param.offset.height);
+                this._param.offset.height = h;
+            }
+            if (this._param.offset.width > w)
+            {
+                this._param.offset.height = Math.round(this._param.offset.height * w / this._param.offset.width);
+                this._param.offset.width = h;
+            }
             
             var id = this._param.id, css = (function(that)
                 {
@@ -170,7 +183,7 @@
                         return function(){console.log('hide '+sid);};
                     })(id);
                     $(this._screens[id])
-                        .on('showed', show)
+                        .on('shown', show)
                         .on('hidden', hide);
                 }
                 return this._screens[id];
