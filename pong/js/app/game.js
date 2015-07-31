@@ -20,6 +20,7 @@
         { 
             context: { type: 'object', value: document.body, isValid: function(p){ return !!(p.context.nodeType && (p.context.nodeType == 1 || p.context.nodeType == 9)); } },
             name: { type: 'string', value: 'Game Undefined', isValid: function(p){ return true; } }, 
+            tile: { type: 'number', value: 32, isValid: function(p){ return !!(isInteger(p.tile)); } },
             offset: { type: 'string|object', value: { width: 900, height: 600 }, isValid: function(p)
                 {
                     var val = p.offset;
@@ -112,6 +113,8 @@
         
         var Game = function(param)
         {
+            var nb;
+            
             this._param = {};
             if (!param || typeof param != 'object')
                 var param = {};
@@ -123,7 +126,8 @@
             }
             this._param.id = uniqId();
             
-            var h = $(window).height(), w = $(window).width();
+            var h = $(window).height() - this._param.tile, w = $(window).width() - this._param.tile;
+            
             if (this._param.offset.height > h)
             {
                 this._param.offset.width = Math.round(this._param.offset.width * h / this._param.offset.height);
@@ -134,6 +138,16 @@
                 this._param.offset.height = Math.round(this._param.offset.height * w / this._param.offset.width);
                 this._param.offset.width = h;
             }
+            
+            nb = 0;
+            while (nb * this._param.tile < this._param.offset.width)
+                nb++;
+            this._param.offset.width = nb * this._param.tile;
+            
+            nb = 0;
+            while (nb * this._param.tile < this._param.offset.height)
+                nb++;
+            this._param.offset.height = nb * this._param.tile;
             
             var id = this._param.id, css = (function(that)
                 {

@@ -135,7 +135,7 @@
                     for (i = 0, l = cache[cid].length; i < l; i++)
                     {
                         var c = cache[cid][i];
-                        if (c.evt !== evt || (fn && c.cb !== fn)) continue;
+                        if ((evt && c.evt !== evt) || (fn && c.cb !== fn)) continue;
                         removeEvent(this.DOMelement, c.evt, c.fn);
                         c = null;
                     }
