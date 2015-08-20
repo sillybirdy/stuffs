@@ -4,7 +4,7 @@
 
 (function(container)
 {
-    var TILE = 32;
+    var TILE = 32, DURATION = 100;
     
     // Server side game code
     var Get = function(r)
@@ -73,7 +73,7 @@
         {
             this._r.velocity('stop', true);
             if (anim)
-                this._r.velocity(anim, { duration: 100 });
+                this._r.velocity(anim, { duration: DURATION });
         };
     };
     
@@ -97,7 +97,7 @@
                 {
                     for (var i in idtvl)
                         idtvl[i].call();
-                }, 100);
+                }, DURATION);
             },
             stop: function(id)
             {
@@ -141,8 +141,10 @@
                 {
                     var nbKeysDown = 0;
                     for(var i in keyIsDown) nbKeysDown += keyIsDown[i];
-                    if (!nbKeysDown) raket.animate({ translateZ: 0, translateX: "0", rotateZ: "0"});
+                    
                     eventHandler.stop('key_'+k);
+                    
+                    if (!nbKeysDown) raket.animate({ translateZ: 0, translateX: 0, rotateZ: 0});
                 }
             });
             Yell(document.body).on('keydown').hook(function(k)
@@ -154,8 +156,8 @@
                 keyIsDown[k] = 1;
                 
                 var keyRef = { '37': 'left', '38': 'up', '39': 'right', '40': 'down' },
-                    animRef = { '37': { translateZ: 0, translateX: "0", rotateZ: "-15deg"}, 
-                                '39': { translateZ: 0, translateX: "0", rotateZ: "15deg"} 
+                    animRef = { '37': { translateZ: 0, translateX: 0, rotateZ: "-15deg"}, 
+                                '39': { translateZ: 0, translateX: 0, rotateZ: "15deg"} 
                         };
                 eventHandler.start('key_'+k, function(){ raket.set.event(keyRef[k]); });
                 
