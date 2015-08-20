@@ -44,6 +44,24 @@
     };
     Get.fn.init.prototype = Get.fn;
     
+    var prefix = (function () {
+        var styles = window.getComputedStyle(document.documentElement, ''),
+            pre = (Array.prototype.slice
+                .call(styles)
+                .join('')
+                .match(/-(moz|webkit|ms)-/) || (styles.OLink === '' && ['', 'o'])
+                )[1],
+            dom = ('WebKit|Moz|MS|O').match(new RegExp('(' + pre + ')', 'i'))[1];
+        return {
+            dom: dom,
+            lowercase: pre,
+            css: '-' + pre + '-',
+            js: pre[0].toUpperCase() + pre.substr(1)
+        };
+    })();
+    
+    var transform = prefix.css+'transform';
+    
     // User racket
     var Raket = function(selector)
     {
@@ -51,11 +69,17 @@
         this._c.append('<div data-ui="raket" style="position: absolute; background: #fff;" />');
         this._r = this._c.find('[data-ui=raket]');
         this.set = Get(this);
+        this.animate = function(anim)
+        {
+            this._r.velocity('stop', true);
+            if (anim)
+                this._r.velocity(anim, { duration: 100 });
+        };
     };
     
     require(['app/yell'], function(Yell)
     {
-        var raket = null;
+        var raket = null, keyIsDown = { 13: 0, 27: 0, 32: 0, 37: 0, 38: 0, 39: 0, 40: 0 };
         
         // Game event handler
         var eventHandler = 
@@ -103,6 +127,8 @@
             {
                 return !!(k.toString().match(/13|27|32|37|38|39|40/));//enter|escape|space|left|up|right|down
             }).act(function(elem, evt, k) {
+                keyIsDown[k] = 0;
+                
                 if (k == 27)
                 {   
                     g.screen('menu').show();
@@ -113,6 +139,9 @@
                 }
                 else
                 {
+                    var nbKeysDown = 0;
+                    for(var i in keyIsDown) nbKeysDown += keyIsDown[i];
+                    if (!nbKeysDown) raket.animate({ translateZ: 0, translateX: "0", rotateZ: "0"});
                     eventHandler.stop('key_'+k);
                 }
             });
@@ -120,8 +149,17 @@
             {
                 return !!(k.toString().match(/32|37|38|39|40/));//space|left|up|right|down
             }).act(function(elem, evt, k) {
-                var keyRef = { '37': 'left', '38': 'up', '39': 'right', '40': 'down' };
+                if (keyIsDown[k]) return;
+            
+                keyIsDown[k] = 1;
+                
+                var keyRef = { '37': 'left', '38': 'up', '39': 'right', '40': 'down' },
+                    animRef = { '37': { translateZ: 0, translateX: "0", rotateZ: "-15deg"}, 
+                                '39': { translateZ: 0, translateX: "0", rotateZ: "15deg"} 
+                        };
                 eventHandler.start('key_'+k, function(){ raket.set.event(keyRef[k]); });
+                
+                raket.animate(animRef[k]);
             });
         };
         
