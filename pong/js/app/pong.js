@@ -29,7 +29,7 @@
         },
         stageFirstPos: function(g)
         {
-            this._a._r.css({ left: Math.round((g.infos().offset.width - this.width())) / 2, bottom: TILE });
+            this._a._r.css({ left: Math.round((g.infos().size.width - this.width())) / 2, bottom: TILE });
             return this;
         },
         event: function(d)
@@ -38,7 +38,7 @@
                 this._a._r.css({ left: parseInt(this._a._r[0].style.left) - TILE });
             else if (d == 'right')
                 this._a._r.css({ left: parseInt(this._a._r[0].style.left) + TILE });
-            //console.log(this._a._r.offset().left);
+            //console.log(this._a._r.size().left);
             return this;
         }
     };

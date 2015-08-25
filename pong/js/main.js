@@ -17,10 +17,10 @@
 
         require(['velocity', 'velocity.ui'], function(Velocity)
         {
-            require(['domReady!', 'app/yell', 'app/game', 'app/pong'], function(doc, Yell, Game) 
+            require(['domReady!', 'app/debug', 'app/yell', 'app/game', 'app/pong'], function(doc, Debug, Yell, Game) 
             {
                 // new Game
-                var g = new Game({ name: 'Pong', offset: '960*540' });
+                var g = new Game({ name: 'Pong', size: '960*540' });
 
                 // define Main Screen
                 g.screen('main').set('style', 'background: #0ff; color: #000')
