@@ -4,6 +4,10 @@
 
 // timeObject:  { date: { from: 01/01/2015 00:00:00, to: 31/12/2015 23:59:59 }, infos: {} }
 
+function randomBg()
+{
+    return '#' + ('000000' + Math.floor(Math.random() * 16777215).toString(16)).slice(-6);
+}
 function randomDate(start, end) {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
@@ -22,8 +26,8 @@ function formatDate(date) {
 // init dates / get data
 
 var data = [], range = { min: 9000, max: 0 }, timel = {};
-for (var i = 0; i < 1000; i++)
-    data.push({ date: { from: formatDate(randomDate(new Date(1907, 0, 1), new Date())) } });
+for (var i = 0; i < 10000; i++)
+    data.push({ date: { from: formatDate(randomDate(new Date(1917, 0, 1), new Date())) } });
 
 for (var i = 0, l = data.length; i < l; i++)
 {
@@ -54,8 +58,10 @@ var scale = (function()
     if (diff > 5000) return 500;
     if (diff > 1000) return 100;
     if (diff > 500) return 50;
-    if (diff > 100) return 10;
-    if (diff > 50) return 5;
+    if (diff > 100) return 20;
+    if (diff > 50) return 10;
+    if (diff > 20) return 5;
+    if (diff > 10) return 2;
     return 1;
 })();
 var begin = (function()
@@ -63,7 +69,7 @@ var begin = (function()
     var begin = 0;
     while (begin < range.min)
         begin += scale;
-    return begin - scale;
+    return begin - (scale == 1 ? 0 : scale);
 })();
 var end = (function()
 {
@@ -79,33 +85,72 @@ var tr = document.createElement('div');
 
 // display dates
 
+function addElem(cc)
+{
+    var tt = document.createElement('span');
+    tt.style.position = 'absolute';
+    //tt.style.top = (20 * j)+'px';
+    tt.style.left = cc[0].pos + '%';
+    tt.innerHTML = '&nbsp;';
+    tt.style.width = Math.max(1, (100/scale))+'%';
+    tt.style.background = randomBg();
+    tt.onmouseover = function()
+    {
+        ll = document.createElement('div');
+        ll.innerHTML = (function(e)
+        {
+            var content = '';
+            for (var l in e)
+                content += '<p>'+e[l].year+' ('+e[l].length+')</p>';
+            return content;
+        })(cc);
+        tt.appendChild(ll);
+    };
+    tt.onmouseout = function()
+    {
+        tt.innerHTML = '&nbsp;';
+    };
+    return tt;
+}
 var frag = document.createDocumentFragment(), j = 0, d = [0], l = 0;
+var cache = {}, pos;
 
-for (var i = begin; i < end; i++)
+for (var i = begin; i <= end; i++)
 {
     if (i >= begin + (scale * (l + 1)))
-    {
+    {//console.log(begin + (scale * (l + 1)));
         var ts = document.createElement('span');
-        ts.innerHTML = begin + (scale * l) + ' ('+(d[l])+')';
+        ts.innerHTML = begin + (scale * l);// + (d[l] ? ' ('+(d[l])+')' : '');
         ts.style.display = 'inline-block';
         ts.style.width = w + '%';
+        ts.style.background = '#ccc';
+        ts.style.border = '1px solid #fff';
+        ts.style.margin = '0 -1px';
+        ts.style.textAlign = 'center';
         tr.appendChild(ts);
         
         d.push(0);
         l = d.length -1;
     }
-    if (!timel[i]) continue;
-    j++;
-    
-    d[l] += timel[i].length;
-    
-    var tt = document.createElement('span');
-    tt.style.position = 'absolute';
-    tt.style.top = (20 * j)+'px';
-    tt.style.left = (Math.round((i - begin) * (range.max * 100 / end) / (end - begin))) + '%';
-    tt.innerHTML = i+' ('+timel[i].length+')';
-    tt.style.background = '#ccc';
-    frag.appendChild(tt);
+    var rpos = (i - begin) * 100 / (end - begin),
+        ppos = Math.ceil((i - 1 - begin) * 100 / (end - begin)),
+        cpos = Math.ceil(rpos);
+    if (timel[i])
+    {
+        d[l] += timel[i].length;
+        
+        if (!cache[cpos]) 
+        {
+            cache[cpos] = [];
+            if (cache[ppos] && cache[ppos].length)
+                frag.appendChild(addElem(cache[ppos]));
+        }
+        cache[cpos].push({ pos: rpos, year: i, length: timel[i].length });
+        pos = cpos;
+        j++;
+    }
+    if (i == end && cache[pos].length)
+        frag.appendChild(addElem(cache[pos]));
 }
 var dd = document.createElement('div');
 dd.style.position = 'relative';
