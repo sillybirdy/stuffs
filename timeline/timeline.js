@@ -16,6 +16,7 @@
         data: [],
         range: { min: 9000, max: 0 }, 
         timel: {},
+        cache: {},
         scale: {},
         defineUnit: function(range)
         {
@@ -59,6 +60,7 @@
         {
             if (!range) var range = this.range;
             this.scale = {};
+            this.range.focus = 0;
             this.scale.unit = this.defineUnit(range);
             this.scale.begin = this.defineDateBegin(range);
             this.scale.end = this.defineDateEnd(range);
@@ -106,29 +108,31 @@
             
             (function(that)
             {
-                var u = 0;
+                var u = 0, endZoomIn, endZoomOut;
                 var btn1 = document.createElement('input');
                 btn1.type = 'button';
                 btn1.id = 'down';
                 btn1.value = '[ - ]';
                 btn1.onclick = function()
                 {
-                    if (!u) return false;
-                    u -= that.scale.unit;
-                    
-                    var range = { min: that.range.min + u, max: that.range.max - u };
-                    if (range.min < that.range.min && range.max > that.range.max)
+                    endZoomIn = false;
+                    if (!endZoomOut)
                     {
-                        u = 0;
-                        return false;
+                        u -= that.scale.unit;
+
+                        var range = (that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]) ?
+                            { min: Math.round((that.cache[that.range.focus][0].year + that.range.min) / 2), max: that.range.max - u } :
+                            { min: that.range.min + u, max: that.range.max - u };
+                        
+                        if (range.min <= that.range.min && range.max >= that.range.max) 
+                            endZoomOut = true;
+                        
+                        if (range.min < that.range.min) range.min = that.range.min;
+                        if (range.max > that.range.max) range.max = that.range.max;
+                        
+                        that.setScale(range);
+                        that.display();
                     }
-                    if (range.min < that.range.min || range.max > that.range.max) 
-                    {
-                        range.min = that.range.min;
-                        range.max = that.range.max;
-                    }
-                    that.setScale(range);
-                    that.display();
                     return false;
                 };
                 var btn2 = document.createElement('input');
@@ -137,35 +141,75 @@
                 btn2.value = '[ + ]';
                 btn2.onclick = function()
                 {
-                    u += that.scale.unit;
-                    var range = { min: that.range.min + u, max: that.range.max - u };
-                    if (range.min > range.max) 
+                    endZoomOut = false;
+                    if (!endZoomIn)
                     {
-                        u -= that.scale.unit;
-                        return false;
+                        u += that.scale.unit;
+                        
+                        var range = (that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]) ?
+                            { min: Math.round((that.cache[that.range.focus][0].year + that.range.min) / 2), max: that.range.max - u } :
+                            { min: that.range.min + u, max: that.range.max - u };
+                        
+                        if (range.min >= range.max) 
+                        {
+                            range.min = range.max;
+                            endZoomIn = true;
+                        }
+                        that.setScale(range);
+                        that.display();
                     }
-                    that.setScale(range);
-                    that.display();
                     return false;
                 };
                 document.body.appendChild(btn1);
                 document.body.appendChild(btn2);
+                
+                if (that.context.addEventListener) 
+                {    
+                   that.context.addEventListener ("mousewheel", function(e)
+                   {
+                       that.zoom(e, that);
+                   }, false);
+                   that.context.addEventListener ("DOMMouseScroll", function(e)
+                   {
+                       that.zoom(e, that);
+                   }, false);
+                }
+                else if (that.context.attachEvent)
+                    this.context.attachEvent ("onmousewheel", function(e)
+                    {
+                         that.zoom(e, that);
+                    });
+                
             })(this);
             
             document.body.appendChild(this.context);
             
-            if (this.context.addEventListener) 
-            {    
-               this.context.addEventListener ("mousewheel", this.zoom, false);
-               this.context.addEventListener ("DOMMouseScroll", this.zoom, false);
-            }
-            else if (this.context.attachEvent)
-                   this.context.attachEvent ("onmousewheel", this.zoom);
-            
             this.getDates();
         },
-        zoom: function(event)
+        zoom: function(event, that)
         {
+            if (!event) var event = window.event;
+            
+            var dot, eventDoc, doc, body, pageX, pageY;
+
+            if (event.pageX == null && event.clientX != null)
+            {
+                eventDoc = (event.target && event.target.ownerDocument) || document;
+                doc = eventDoc.documentElement;
+                body = eventDoc.body;
+                event.pageX = event.clientX +
+                (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+                (doc && doc.clientLeft || body && body.clientLeft || 0);
+                event.pageY = event.clientY +
+                (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
+                (doc && doc.clientTop  || body && body.clientTop  || 0 );
+            }
+            var mousePos = { x: event.pageX, y: event.pageY };
+            
+            that.range.focus = Math.round(mousePos.x * 100 / parseInt(that.context.offsetWidth));
+            while (!that.cache[that.range.focus] && that.range.focus)
+                that.range.focus--;
+            
             var rolled = 0;
             if ('wheelDelta' in event)
                 rolled = event.wheelDelta;
@@ -224,7 +268,7 @@
             var j = 0, w = scale * 100 / (end - begin);
             var tr = document.createElement('div');
             var frag = document.createDocumentFragment(), j = 0, d = [0], l = 0;
-            var cache = {}, timel = this.timel, pos;
+            var cache = this.cache = {}, timel = this.timel, pos;
 
             for (var i = begin; i <= end; i++)
             {
