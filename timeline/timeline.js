@@ -6,7 +6,8 @@
 
 (function()
 {
-    var Timeline = function(context)
+    var _uuid = 0,
+    Timeline = function(context)
     {
         this.init(context);
     };
@@ -60,11 +61,13 @@
         {
             if (!range) var range = this.range;
             this.scale = {};
-            this.range.focus = 0;
             this.scale.unit = this.defineUnit(range);
             this.scale.begin = this.defineDateBegin(range);
             this.scale.end = this.defineDateEnd(range);
             this.scale.steps = (this.scale.end - this.scale.begin) / this.scale.unit;
+            
+            this.range.focus = 0;
+            if (!this.range.month) this.range.month = 14;
         },
         getDates: function()
         {
@@ -84,7 +87,7 @@
                 return [day, month, year].join('/');
             }
             for (var i = 0; i < 10000; i++)
-                this.data.push({ date: { from: formatDate(randomDate(new Date(1802, 0, 1), new Date())) } });
+                this.data.push({ date: { from: formatDate(randomDate(new Date(1817, 0, 1), new Date())) } });
             
             this.parseDates();
         },
@@ -104,11 +107,12 @@
         init: function(context)
         {
             this.context = document.createElement('div');
+            if (!this.context.id) this.context.id = 'timeline_'+(++_uuid);
             this.context.style.position = 'relative';
             
             (function(that)
             {
-                var u = 0, endZoomIn, endZoomOut;
+                var u = 0, endZoomIn, endZoomOut, range = {};
                 var btn1 = document.createElement('input');
                 btn1.type = 'button';
                 btn1.id = 'down';
@@ -120,19 +124,27 @@
                     {
                         u -= that.scale.unit;
 
-                        var range = (that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]) ?
+                        range = /*(that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]) ?
                             { min: Math.round((that.cache[that.range.focus][0].year + that.range.min) / 2), max: that.range.max - u } :
-                            { min: that.range.min + u, max: that.range.max - u };
+                            */{ min: that.range.min + u, max: that.range.max - u };
                         
                         if (range.min <= that.range.min && range.max >= that.range.max) 
                             endZoomOut = true;
                         
                         if (range.min < that.range.min) range.min = that.range.min;
                         if (range.max > that.range.max) range.max = that.range.max;
-                        
-                        that.setScale(range);
-                        that.display();
                     }
+                    
+                    if (range.min == range.max && that.range.month <= 12)
+                    {
+                        endZoomIn = true;
+                        that.range.month += 1;
+                        if (that.range.month == 12) 
+                            endZoomOut = false;
+                    }
+                    that.setScale(range);
+                    that.display();
+
                     return false;
                 };
                 var btn2 = document.createElement('input');
@@ -146,18 +158,29 @@
                     {
                         u += that.scale.unit;
                         
-                        var range = (that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]) ?
-                            { min: Math.round((that.cache[that.range.focus][0].year + that.range.min) / 2), max: that.range.max - u } :
-                            { min: that.range.min + u, max: that.range.max - u };
+                        var mm = 0;
+                        //if ((that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]))
+                        //    mm = that.cache[that.range.focus][0].year < Math.round(((range.max||that.range.max) + (range.min||that.range.min)) / 2) ? -1 : 1;
+                        
+                        range = { min: that.range.min + (mm < 0 ? 0 : u), max: that.range.max - (mm > 0 ? 0 : u) };
                         
                         if (range.min >= range.max) 
                         {
                             range.min = range.max;
+                            that.range.month = 13;
                             endZoomIn = true;
                         }
-                        that.setScale(range);
-                        that.display();
                     }
+                    
+                    if (range.min == range.max)
+                    {
+                        if (that.range.month < 13) endZoomOut = true;
+                        if (that.range.month > 1) that.range.month -= 1;
+                    }
+
+                    that.setScale(range);
+                    that.display();
+                    //}
                     return false;
                 };
                 document.body.appendChild(btn1);
@@ -221,10 +244,8 @@
         },
         display: function()
         {
-            if (this.range.min < this.range.max)
-                this.displayYear();
-            else
-                console.log('month');
+            this.displayYear();
+            this.displayDays();
         },
         displayYear: function()
         {
@@ -233,12 +254,13 @@
             {
                 return '#' + ('000000' + Math.floor(Math.random() * 16777215).toString(16)).slice(-6);
             }
-
+            var id = this.context.id;
             // display dates
 
             function addElem(cc)
             {
                 var tt = document.createElement('span');
+                tt.id = id+'_year_'+cc[0].year;
                 tt.style.position = 'absolute';
                 //tt.style.top = (20 * j)+'px';
                 tt.style.left = cc[0].pos + '%';
@@ -248,7 +270,7 @@
                 tt.style.background = randomBg();
                 tt.onmouseover = function()
                 {
-                    ll = document.createElement('div');
+                    var ll = document.createElement('div');
                     ll.innerHTML = (function(e)
                     {
                         var content = '';
@@ -268,7 +290,7 @@
             var j = 0, w = scale * 100 / (end - begin);
             var tr = document.createElement('div');
             var frag = document.createDocumentFragment(), j = 0, d = [0], l = 0;
-            var cache = this.cache = {}, timel = this.timel, pos;
+            var cache = this.cache = {}, timel = this.timel, rpos, ppos, cpos;
 
             for (var i = begin; i <= end; i++)
             {
@@ -287,9 +309,8 @@
                     d.push(0);
                     l = d.length -1;
                 }
-                var rpos = (i - begin) * 100 / (end - begin),
-                    ppos = Math.ceil((i - 1 - begin) * 100 / (end - begin)),
-                    cpos = Math.ceil(rpos);
+                rpos = (i - begin) * 100 / (end - begin);
+                cpos = Math.ceil(rpos);
                 if (timel[i])
                 {
                     d[l] += timel[i].length;
@@ -300,12 +321,12 @@
                         if (cache[ppos] && cache[ppos].length)
                             frag.appendChild(addElem(cache[ppos]));
                     }
+                    ppos = cpos;
                     cache[cpos].push({ pos: rpos, year: i, length: timel[i].length });
-                    pos = cpos;
                     j++;
                 }
-                if (i == end && cache[pos].length)
-                    frag.appendChild(addElem(cache[pos]));
+                if (i == end && cache[ppos].length)
+                    frag.appendChild(addElem(cache[ppos]));
             }
             var dd = document.createElement('div');
             dd.style.position = 'relative';
@@ -320,6 +341,27 @@
             clear.style.height = '200px;';
             this.context.appendChild(clear);
             //console.log(j);
+        },
+        displayDays: function()
+        {
+            if (this.scale.begin !== this.scale.end - 1) return;
+            var from = 0;//@todo
+            var tr = document.getElementById(this.context.id+'_year_'+this.scale.begin);
+            for (var i = 1 + from, j = 0; i <= this.range.month + from; i++)
+            {
+                var ts = document.createElement('div');
+                ts.innerHTML = i;
+                ts.style.position = 'absolute';
+                //ts.style.top = '0px';
+                ts.style.left = (100 / this.range.month) * j + '%';
+                ts.style.width = (100 / this.range.month) + '%';
+                ts.style.background = '#ccc';
+                ts.style.border = '1px solid #111';
+                ts.style.margin = '0 -1px';
+                //ts.style.textAlign = 'center';
+                tr.appendChild(ts);
+                j++;
+            }
         }
     };
     
