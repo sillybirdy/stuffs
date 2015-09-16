@@ -19,6 +19,7 @@
         timel: {},
         cache: {},
         scale: {},
+        mousePos: {},
         defineUnit: function(range)
         {
             var diff = range.max - range.min;
@@ -60,13 +61,20 @@
         setScale: function(range)
         {
             if (!range) var range = this.range;
+            else
+            {
+                if (range.min < this.range.min)
+                    range.min = this.range.min;
+                if (range.max > this.range.max)
+                    range.max = this.range.max;
+            }
             this.scale = {};
             this.scale.unit = this.defineUnit(range);
             this.scale.begin = this.defineDateBegin(range);
             this.scale.end = this.defineDateEnd(range);
             this.scale.steps = (this.scale.end - this.scale.begin) / this.scale.unit;
             
-            this.range.focus = 0;
+            if (!this.range.focus) this.range.focus = 0; // year 0 doesn't exist
             if (!this.range.month) this.range.month = 14;
         },
         getDates: function()
@@ -91,6 +99,16 @@
             
             this.parseDates();
         },
+        getYearPos: function()
+        {
+            var focus = Math.round(this.mousePos.x * 100 / parseInt(this.context.offsetWidth)),
+                year = Math.round(focus * (this.range.end - this.range.begin) / 100) + this.range.begin,
+                mid = Math.round((this.range.min + this.range.max) / 2);
+            /*while (!this.cache[focus] && focus)
+                focus--;
+            return focus ? this.cache[focus][0].year : 0;*/
+            return focus;// + (focus < 50 ? year - mid : mid - year);
+        },
         parseDates: function()
         {
             for (var i = 0, l = this.data.length; i < l; i++)
@@ -109,6 +127,8 @@
             this.context = document.createElement('div');
             if (!this.context.id) this.context.id = 'timeline_'+(++_uuid);
             this.context.style.position = 'relative';
+            this.context.style.height = '100px';
+            this.context.style.overflow = 'hidden';
             
             (function(that)
             {
@@ -123,10 +143,16 @@
                     if (!endZoomOut)
                     {
                         u -= that.scale.unit;
-
-                        range = /*(that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]) ?
-                            { min: Math.round((that.cache[that.range.focus][0].year + that.range.min) / 2), max: that.range.max - u } :
-                            */{ min: that.range.min + u, max: that.range.max - u };
+                        
+                        var min = that.range.min, max = that.range.max, mid = Math.round((max + min) / 2), diff = { min: 0, max: 0 };
+                        //if (that.range.focus)
+                        //    diff = { min: that.range.focus - mid, max: 0 };
+                        
+                        // re-center date range
+                        min += diff.min;
+                        max += diff.max;
+                        
+                        range = { min: min + u, max: max - u };
                         
                         if (range.min <= that.range.min && range.max >= that.range.max) 
                             endZoomOut = true;
@@ -158,12 +184,21 @@
                     {
                         u += that.scale.unit;
                         
-                        var mm = 0;
-                        //if ((that.range.focus && that.cache[that.range.focus] && that.cache[that.range.focus][0]))
-                        //    mm = that.cache[that.range.focus][0].year < Math.round(((range.max||that.range.max) + (range.min||that.range.min)) / 2) ? -1 : 1;
+                        var min = that.range.min, max = that.range.max, mid = Math.round((max + min) / 2), diff = { min: 0, max: 0 };
                         
-                        range = { min: that.range.min + (mm < 0 ? 0 : u), max: that.range.max - (mm > 0 ? 0 : u) };
-                        
+                        if (that.range.focus)
+                        {
+                            var dm = Math.round(u * that.range.focus / 100);
+                            diff = { min: dm, max: 100 - dm };
+                        }
+                        // re-center date range
+                        min += diff.min;
+                        max += diff.max;
+                        try{console.log('*** '+that.range.focus+'; '+u);
+                        console.log(that.range.focus+' - '+mid+' = '+diff); }catch(e){}
+                        console.log(min+', '+max);
+                        range = { min: min + u, max: max - u };
+                        console.log(range);
                         if (range.min >= range.max) 
                         {
                             range.min = range.max;
@@ -197,7 +232,7 @@
                        that.zoom(e, that);
                    }, false);
                 }
-                else if (that.context.attachEvent)
+                else if (that.context.attachEvent)// really?
                     this.context.attachEvent ("onmousewheel", function(e)
                     {
                          that.zoom(e, that);
@@ -212,8 +247,8 @@
         zoom: function(event, that)
         {
             if (!event) var event = window.event;
-            
-            var dot, eventDoc, doc, body, pageX, pageY;
+
+            var eventDoc, doc, body;
 
             if (event.pageX == null && event.clientX != null)
             {
@@ -227,11 +262,8 @@
                 (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
                 (doc && doc.clientTop  || body && body.clientTop  || 0 );
             }
-            var mousePos = { x: event.pageX, y: event.pageY };
-            
-            that.range.focus = Math.round(mousePos.x * 100 / parseInt(that.context.offsetWidth));
-            while (!that.cache[that.range.focus] && that.range.focus)
-                that.range.focus--;
+            that.mousePos = { x: event.pageX, y: event.pageY };
+            that.range.focus = that.getYearPos();
             
             var rolled = 0;
             if ('wheelDelta' in event)
