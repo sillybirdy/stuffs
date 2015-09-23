@@ -56,16 +56,18 @@
         Content.fn = Content.prototype =
         {
             _fn: null,
-            _tpl: '',
+            _tpl: null,
             _cache: {},
             _data: {},
             _target: null,
             id: '',
-            length: 0,
+            name: '',
+            parent: null,
             displayed: false,
             init: function(cid, param)
             {
                 this.id = param._containerId+'_'+cid;
+                this.name = cid;
                 var id = this.id, css = {
                         position: 'relative'/*,
                         width: param.size.width.toString()+'px',
@@ -81,7 +83,7 @@
                 }
                 return this;
             },
-            set: function(attr, val)
+            set: function(attr, val)//todo
             {
                 var prev = $('#'+this.id).attr(attr);
                 $('#'+this.id).attr(attr, prev + val);
@@ -124,6 +126,13 @@
             template: function(tpl)
             {
                 this._tpl = tpl;
+                if (this._tpl && typeof this._tpl == 'object')
+                    for (var module in this._tpl)
+                    {
+;                       var template = this._tpl[module];
+                        if (template instanceof Content)
+                            template.parent = this;
+                    }
                 return this;
             },
             reset: function()
@@ -137,9 +146,12 @@
                     }
                 this._data = {};
                 this._cache = {};
-                this.length = 0;
                 $('#'+this.id).html('');
                 return this;
+            },
+            update: function()
+            {
+                
             },
             data: function(input, target)
             {
@@ -174,15 +186,17 @@
                 }
                 catch(e){ dt = {}; }
                 
-                this.length = 0;
+                if (!this._data[this._target]) this._data[this._target] = {};
+                var length = 0;
                 for (var i in dt)
                 {
-                    this._data[i] = { id: i, cols: {} };
-                    if (!dt[i]) this._data[i] = null;//data displayed must be removed
-                    else getKeys(dt[i], '', this._data[i]);
-                    this.length++;
+                    this._data[this._target][i] = { id: i, cols: {} };
+                    if (!dt[i]) this._data[this._target][i] = null;//data displayed must be removed
+                    else getKeys(dt[i], '', this._data[this._target][i]);
+                    length++;
                 }
-                this._data._layerFormatted = true;
+                this._data[this._target]._layerFormatted = true;
+                this._data[this._target]._length = length;
                 return this;
             },
             print: function(template, norep)
@@ -213,14 +227,14 @@
                             render(template, '#'+this.id);
                         this._cache[module] = template;
                     }
-                    else if (module === this._target && this.length)
+                    else if (module === this._target && this._data[module]._length)
                     {
                         // check cache
                         if (!this._cache[module]) this._cache[module] = {};
-                        for (var i in this._data)
+                        for (var i in this._data[module])
                         {
                             if (i === '_layerFormatted') continue;
-                            if (!this._data[i])
+                            if (!this._data[module][i])
                             {
                                 if (this._cache[module][i]) this._cache[module][i] = null;
                                 continue;
@@ -228,14 +242,14 @@
                             if (!this._cache[module][i]) this._cache[module][i] = { update: true, html: '', data: {} };
                             this._cache[module][i].update = false;
                             var tpl = template;
-                            for (var j in this._data[i].cols)
+                            for (var j in this._data[module][i].cols)
                             {
-                                tpl = tpl.replace(new RegExp('{{' + j + '}}', 'gi'), this._data[i].cols[j]);
-                                if (!this._cache[module][i].data[j] || this._cache[module][i].data[j] !== this._data[i].cols[j])
+                                tpl = tpl.replace(new RegExp('{{' + j + '}}', 'gi'), this._data[module][i].cols[j]);
+                                if (!this._cache[module][i].data[j] || this._cache[module][i].data[j] !== this._data[module][i].cols[j])
                                     this._cache[module][i].update = true;
-                                this._cache[module][i].data[j] = this._data[i].cols[j];
+                                this._cache[module][i].data[j] = this._data[module][i].cols[j];
                             }
-                            this._data[i] = 0; // clear data
+                            this._data[module][i] = 0; // clear data
                             this._cache[module][i].html = tpl;
                         }
                         // display html
@@ -265,8 +279,7 @@
                             }
                         }
                         // clear displayed data (kept in cache)
-                        this._data = [];
-                        this.length = 0;
+                        this._data[module] = {};
                     }
                 }
                 return this;

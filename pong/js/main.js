@@ -1,5 +1,5 @@
 /* 
- * Pong test version 0.15.6
+ * test version 0.15.9
  */
 (function(container)
 {
@@ -19,26 +19,39 @@
         {
             require(['domReady!', 'app/debug', 'app/yell', 'app/layer', 'app/pong'], function(doc, Debug, Yell, Layer) 
             {
-                // new Game
-                var g = new Layer({ name: 'Test' });
+                // new test
+                var g = new Layer({ name: 'Test' }), incr = 0;
                 
                 //data test
+                g.content('increment')
+                .template({
+                    count: '<h1>Nombre de recherche(s) {{count}}</h1>'
+                })
+                .data({ row1: { count: incr } }, 'count');
+        
                 g.content('form')
                 .template({
                     form: '<form><input type="text" name="search" /><input type="submit" value="OK" /></form>',
+                    count: g.content('increment'),
                     list: g.content('datas')
                 }).define({show: function(sc)
                     {
                         $('#'+sc+' form').submit(function()
                         {console.log('get search result');
-                            g.content('form')
+                            g.content('datas')
                             .reset().data({ 
                                 row1: { title: 'résultat 1 de recherche', txt: 'texte bidon after change', infos: { desc: 'ezr', num: 1} },
                                 row2: { title: 'deuxième titre', txt: 'texte 2 after change', infos: { desc: 'ezr', num: 8} }
                             }, 'list').print();
+                            
+                            g.content('increment')
+                            .data({ 
+                                row1: { count: (++incr) } 
+                            }, 'count').print();
                             return false; 
                         });
                     }});
+                
                 g.content('datas')
                 .template({
                     list: '<h1>{{title}}</h1><p>{{txt}}</p><p>{{infos.desc}} {{infos.num}}</p>'
